@@ -7,11 +7,13 @@
 <style>
   :root {
     --bg: #f6f5f1; --card: #ffffff; --ink: #1f2420; --muted: #6b726c; --line: #e4e2da;
-    --accent: #2f6b4f; --accent-ink: #ffffff; --warn: #b4472f; --bar: #8fb9a3;
+    --accent: #2f6b4f; --accent-ink: #ffffff; --warn: #b4472f; --bar: #8fb9a3; --good: #2f6b4f;
+    --c-liquid: #8fb9a3; --c-invest: #2f6b4f; --c-owed: #c9a14a;
   }
   @media (prefers-color-scheme: dark) {
     :root { --bg: #151816; --card: #1e2220; --ink: #ecefe9; --muted: #98a09a; --line: #2c322f;
-            --accent: #6fbf94; --accent-ink: #10231a; --warn: #e07a62; --bar: #3f6b55; }
+            --accent: #6fbf94; --accent-ink: #10231a; --warn: #e07a62; --bar: #3f6b55; --good: #6fbf94;
+            --c-liquid: #3f6b55; --c-invest: #6fbf94; --c-owed: #b8923f; }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
@@ -39,11 +41,20 @@
   .row:first-child { border-top: 0; }
   .muted { color: var(--muted); font-size: 13px; }
   .amt { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+  .neg { color: var(--warn); } .pos { color: var(--good); }
   .bar { height: 8px; background: var(--line); border-radius: 4px; margin-top: 5px; overflow: hidden; }
   .bar > i { display: block; height: 100%; background: var(--bar); }
+  .stack { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--line); margin: 12px 0 8px; }
+  .stack > i { display: block; height: 100%; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); }
+  .legend b { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; }
   .big { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+  .actions { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .actions button { flex: 1; white-space: nowrap; }
+  .section { font-size: 13px; color: var(--muted); margin: 18px 2px 8px; text-transform: uppercase; letter-spacing: .04em; }
+  .btns { display: flex; gap: 6px; margin-top: 10px; }
   .tab { display: none; } .tab.show { display: block; }
-  #msg { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; display: none; max-width: 90vw; }
+  #msg { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; display: none; max-width: 90vw; z-index: 10; }
   dialog { border: 1px solid var(--line); border-radius: 14px; background: var(--card); color: var(--ink); width: min(92vw, 420px); }
   dialog::backdrop { background: rgba(0,0,0,.4); }
 </style>
@@ -55,6 +66,7 @@
 </header>
 <nav id="nav">
   <button data-tab="add" class="active">Add</button>
+  <button data-tab="pockets">Pockets</button>
   <button data-tab="summary">Summary</button>
   <button data-tab="owed">Owed to me</button>
   <button data-tab="history">History</button>
@@ -75,6 +87,11 @@
       <label for="date">Date</label>
       <input id="date" type="date" required>
 
+      <div id="pocketWrap" style="display:none">
+        <label for="pocket">Paid from (pocket)</label>
+        <select id="pocket"></select>
+      </div>
+
       <label class="check"><input id="forOther" type="checkbox"> I paid for someone else</label>
       <div id="personWrap" style="display:none">
         <label for="person">Who owes you?</label>
@@ -86,6 +103,23 @@
     </form>
   </section>
 
+  <section id="tab-pockets" class="tab">
+    <div class="card">
+      <div class="muted">Net worth</div>
+      <div class="big" id="netWorth">-</div>
+      <div class="muted" id="netSub"></div>
+      <div class="stack" id="stack"></div>
+      <div class="legend" id="legend"></div>
+      <div id="breakdown" style="margin-top:8px"></div>
+    </div>
+    <div class="actions">
+      <button id="btnPocket" class="primary">+ Pocket</button>
+      <button id="btnIncome">+ Income</button>
+      <button id="btnTransfer">Transfer</button>
+    </div>
+    <div id="pocketList"></div>
+  </section>
+
   <section id="tab-summary" class="tab">
     <div class="card">
       <label for="month" style="margin-top:0">Month</label>
@@ -93,6 +127,7 @@
       <div style="margin-top:14px" class="muted">Total spent</div>
       <div class="big" id="total">-</div>
       <div class="muted" id="totalOther"></div>
+      <div class="muted" id="incomeLine"></div>
     </div>
     <div class="card"><h2>By category</h2><div id="byCat"></div></div>
   </section>
@@ -121,6 +156,17 @@
     </div>
   </form>
 </dialog>
+
+<dialog id="dlg">
+  <form id="dlgForm">
+    <h2 id="dlgTitle"></h2>
+    <div id="dlgBody"></div>
+    <div style="display:flex; gap:8px; margin-top:16px">
+      <button type="button" id="dlgCancel" style="flex:1">Cancel</button>
+      <button type="submit" id="dlgOk" class="primary" style="flex:1">Save</button>
+    </div>
+  </form>
+</dialog>
 <div id="msg"></div>
 
 <script>
@@ -134,16 +180,31 @@ const CATS = [
   { id: 'gift',           label: 'Gift',      e: '🎁' },
   { id: 'other',          label: 'Other',     e: '📦' },
 ];
+const TYPES = [
+  { id: 'cash',       label: 'Cash',       e: '💵' },
+  { id: 'bank',       label: 'Bank',       e: '🏦' },
+  { id: 'ewallet',    label: 'E-wallet',   e: '📱' },
+  { id: 'investment', label: 'Investment', e: '📈' },
+  { id: 'other',      label: 'Other',      e: '📦' },
+];
 const catById = Object.fromEntries(CATS.map(c => [c.id, c]));
+const typeById = Object.fromEntries(TYPES.map(t => [t.id, t]));
 const $ = s => document.querySelector(s);
 const idr = n => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n || 0);
+const signed = n => (n > 0 ? '+' : '') + idr(n);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const num = v => Number(v) || 0;
+const bool = v => v === true || v === 'TRUE' || v === 'true';
 const todayStr = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 
-let rows = [];
+let rows = [];     // expenses
+let pockets = [];  // where money lives
+let moves = [];    // income / transfers / adjustments
 let category = 'food';
 
 function cfg() { try { return { url: localStorage.getItem('ml_url') || '', token: localStorage.getItem('ml_token') || '' }; } catch { return { url: '', token: '' }; } }
+function lastPocket() { try { return localStorage.getItem('ml_pocket') || ''; } catch { return ''; } }
+function setLastPocket(v) { try { localStorage.setItem('ml_pocket', v || ''); } catch {} }
 function toast(t) { const m = $('#msg'); m.textContent = t; m.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => m.style.display = 'none', 2600); }
 
 async function api(body) {
@@ -159,13 +220,126 @@ async function api(body) {
 
 async function load() {
   try {
-    rows = (await api()).data.map(r => ({ ...r, amount: Number(r.amount), forOther: r.forOther === true || r.forOther === 'TRUE', settled: r.settled === true || r.settled === 'TRUE' }));
+    const j = await api();
+    rows = (j.data || []).map(r => ({ ...r, amount: num(r.amount), forOther: bool(r.forOther), settled: bool(r.settled), pocket: r.pocket || '', settledPocket: r.settledPocket || '' }));
+    pockets = (j.pockets || []).map(p => ({ ...p, opening: num(p.opening), costBasis: num(p.costBasis), archived: bool(p.archived) }));
+    moves = (j.moves || []).map(m => ({ ...m, amount: num(m.amount) }));
     render();
   } catch (e) { toast(e.message); }
 }
 
+// ---------- pocket maths ----------
+// balance = opening + income in + transfers in - transfers out + adjustments - expenses paid from it + settled debts received into it
+function pocketStats(p) {
+  let bal = p.opening, cost = p.costBasis;
+  moves.forEach(m => {
+    if (m.kind === 'income' && m.to === p.id) bal += m.amount;
+    else if (m.kind === 'adjust' && m.to === p.id) bal += m.amount;
+    else if (m.kind === 'transfer') {
+      if (m.to === p.id) { bal += m.amount; cost += m.amount; }
+      if (m.from === p.id) { bal -= m.amount; cost -= m.amount; }
+    }
+  });
+  rows.forEach(r => {
+    if (r.pocket === p.id) bal -= r.amount;
+    if (r.settled && r.settledPocket === p.id) bal += r.amount;
+  });
+  return { bal, cost, gain: bal - cost };
+}
+const activePockets = () => pockets.filter(p => !p.archived);
+const pocketName = id => (pockets.find(p => p.id === id) || {}).name || '(unknown)';
+function pocketOptions(withNone) {
+  const opts = activePockets().map(p => ({ v: p.id, l: `${(typeById[p.type] || typeById.other).e} ${p.name} · ${idr(pocketStats(p).bal)}` }));
+  return withNone ? [{ v: '', l: withNone }, ...opts] : opts;
+}
+function netWorth() {
+  let liquid = 0, invest = 0, investCost = 0;
+  activePockets().forEach(p => {
+    const s = pocketStats(p);
+    if (p.type === 'investment') { invest += s.bal; investCost += s.cost; } else liquid += s.bal;
+  });
+  const owed = rows.filter(r => r.forOther && !r.settled).reduce((s, r) => s + r.amount, 0);
+  return { liquid, invest, investCost, owed, total: liquid + invest + owed };
+}
+
+// ---------- dialog helper ----------
+function ask(title, fields, ok = 'Save') {
+  return new Promise(resolve => {
+    const d = $('#dlg'), form = $('#dlgForm');
+    $('#dlgTitle').textContent = title;
+    $('#dlgOk').textContent = ok;
+    $('#dlgBody').innerHTML = fields.map(f => {
+      const id = 'f_' + f.id, req = f.required ? 'required' : '';
+      const input = f.type === 'select'
+        ? `<select id="${id}">${f.options.map(o => `<option value="${esc(o.v)}"${String(o.v) === String(f.value ?? '') ? ' selected' : ''}>${esc(o.l)}</option>`).join('')}</select>`
+        : `<input id="${id}" type="${f.type || 'text'}" ${f.type === 'number' ? 'step="any" inputmode="decimal"' : ''} ${req} placeholder="${esc(f.placeholder || '')}" value="${esc(f.value ?? '')}">`;
+      return `<label for="${id}">${esc(f.label)}</label>${input}${f.hint ? `<div class="muted" style="margin-top:4px">${esc(f.hint)}</div>` : ''}`;
+    }).join('');
+    let done = false;
+    const finish = v => { if (done) return; done = true; if (d.open) d.close(); resolve(v); };
+    form.onsubmit = e => { e.preventDefault(); const v = {}; fields.forEach(f => v[f.id] = $('#f_' + f.id).value); finish(v); };
+    $('#dlgCancel').onclick = () => finish(null);
+    d.onclose = () => finish(null);
+    d.showModal();
+    const first = $('#dlgBody input, #dlgBody select'); if (first) first.focus();
+  });
+}
+
+async function run(fn, okMsg) {
+  try { await fn(); if (okMsg) toast(okMsg); await load(); } catch (err) { toast(err.message); }
+}
+
+// ---------- rendering ----------
 function renderCats() {
   $('#cats').innerHTML = CATS.map(c => `<button type="button" data-cat="${c.id}" class="${c.id === category ? 'active' : ''}"><span class="e">${c.e}</span>${c.label}</button>`).join('');
+}
+
+function renderPocketSelect() {
+  const sel = $('#pocket');
+  const keep = sel.value || lastPocket();
+  const list = activePockets();
+  $('#pocketWrap').style.display = list.length ? 'block' : 'none';
+  sel.innerHTML = pocketOptions('— not tracked —').map(o => `<option value="${esc(o.v)}">${esc(o.l)}</option>`).join('');
+  sel.value = list.some(p => p.id === keep) ? keep : '';
+}
+
+function renderPockets() {
+  const nw = netWorth();
+  $('#netWorth').textContent = idr(nw.total);
+  $('#netSub').textContent = nw.owed ? `includes ${idr(nw.owed)} owed to you` : '';
+  const parts = [
+    { label: 'Cash & accounts', v: nw.liquid, c: 'var(--c-liquid)' },
+    { label: 'Investments', v: nw.invest, c: 'var(--c-invest)' },
+    { label: 'Owed to me', v: nw.owed, c: 'var(--c-owed)' },
+  ];
+  const pos = parts.reduce((s, p) => s + Math.max(p.v, 0), 0);
+  $('#stack').innerHTML = pos ? parts.filter(p => p.v > 0).map(p => `<i style="width:${(p.v / pos * 100).toFixed(1)}%;background:${p.c}"></i>`).join('') : '';
+  $('#legend').innerHTML = parts.map(p => `<span><b style="background:${p.c}"></b>${esc(p.label)}${pos && p.v > 0 ? ` ${(p.v / pos * 100).toFixed(0)}%` : ''}</span>`).join('');
+  const invGain = nw.invest - nw.investCost;
+  $('#breakdown').innerHTML =
+    `<div class="row"><span>Cash & accounts</span><span class="amt ${nw.liquid < 0 ? 'neg' : ''}">${idr(nw.liquid)}</span></div>` +
+    `<div class="row"><div>Investments${nw.investCost ? `<div class="muted">cost ${idr(nw.investCost)} · <span class="${invGain < 0 ? 'neg' : 'pos'}">${signed(invGain)}</span></div>` : ''}</div><span class="amt">${idr(nw.invest)}</span></div>` +
+    `<div class="row"><span>Owed to me</span><span class="amt">${idr(nw.owed)}</span></div>`;
+
+  const list = activePockets();
+  if (!list.length) {
+    $('#pocketList').innerHTML = '<div class="card muted">No pockets yet. Tap <b>+ Pocket</b> and add each place your money lives, for example Wallet, a bank account, an e-wallet or a stock/fund account, with its current balance.</div>';
+    return;
+  }
+  const total = Math.max(pos, 1);
+  $('#pocketList').innerHTML = TYPES.map(t => {
+    const ps = list.filter(p => p.type === t.id).map(p => ({ p, s: pocketStats(p) })).sort((a, b) => b.s.bal - a.s.bal);
+    if (!ps.length) return '';
+    const sub = ps.reduce((s, x) => s + x.s.bal, 0);
+    return `<div class="section">${t.e} ${esc(t.label)} · ${idr(sub)}</div>` + ps.map(({ p, s }) => {
+      const share = Math.max(s.bal, 0) / total * 100;
+      const inv = p.type === 'investment';
+      return `<div class="card"><div class="row" style="padding:0;border:0"><h2 style="margin:0">${esc(p.name)}</h2><span class="amt ${s.bal < 0 ? 'neg' : ''}">${idr(s.bal)}</span></div>` +
+        (inv ? `<div class="muted">cost ${idr(s.cost)} · <span class="${s.gain < 0 ? 'neg' : 'pos'}">${signed(s.gain)}${s.cost > 0 ? ` (${(s.gain / s.cost * 100).toFixed(1)}%)` : ''}</span></div>` : '') +
+        `<div class="bar"><i style="width:${share.toFixed(0)}%"></i></div>` +
+        `<div class="btns"><button class="small" data-setbal="${esc(p.id)}">${inv ? 'Update value' : 'Set balance'}</button><button class="small danger" data-archive="${esc(p.id)}">Archive</button></div></div>`;
+    }).join('');
+  }).join('');
 }
 
 function renderSummary() {
@@ -173,8 +347,10 @@ function renderSummary() {
   const list = rows.filter(r => String(r.date).startsWith(month));
   const total = list.reduce((s, r) => s + r.amount, 0);
   const other = list.filter(r => r.forOther).reduce((s, r) => s + r.amount, 0);
+  const income = moves.filter(m => m.kind === 'income' && String(m.date).startsWith(month)).reduce((s, m) => s + m.amount, 0);
   $('#total').textContent = idr(total);
   $('#totalOther').textContent = other ? `of which ${idr(other)} paid for others` : '';
+  $('#incomeLine').textContent = income ? `Income ${idr(income)} · net ${signed(income - total)}` : '';
   const sums = {};
   list.forEach(r => sums[r.category] = (sums[r.category] || 0) + r.amount);
   const sorted = Object.entries(sums).sort((a, b) => b[1] - a[1]);
@@ -201,21 +377,32 @@ function renderOwed() {
 }
 
 function renderHistory() {
-  const list = [...rows].sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 60);
-  $('#historyList').innerHTML = list.length ? list.map(r => {
-    const c = catById[r.category] || { label: r.category, e: '📦' };
-    const tag = r.forOther ? ` · for ${esc(r.person || '?')}${r.settled ? ' (paid back)' : ''}` : '';
-    return `<div class="row"><div><div>${c.e} ${esc(r.note || c.label)}</div><div class="muted">${esc(r.date)}${tag}</div></div><div style="text-align:right"><div class="amt">${idr(r.amount)}</div><button class="small danger" data-del="${esc(r.id)}">Delete</button></div></div>`;
+  const items = [
+    ...rows.map(r => ({ k: 'e', date: String(r.date), r })),
+    ...moves.map(m => ({ k: 'm', date: String(m.date), m })),
+  ].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 60);
+  $('#historyList').innerHTML = items.length ? items.map(it => {
+    if (it.k === 'e') {
+      const r = it.r, c = catById[r.category] || { label: r.category, e: '📦' };
+      const tag = (r.pocket ? ` · from ${esc(pocketName(r.pocket))}` : '') + (r.forOther ? ` · for ${esc(r.person || '?')}${r.settled ? ' (paid back)' : ''}` : '');
+      return `<div class="row"><div><div>${c.e} ${esc(r.note || c.label)}</div><div class="muted">${esc(r.date)}${tag}</div></div><div style="text-align:right"><div class="amt">-${idr(r.amount)}</div><button class="small danger" data-del="${esc(r.id)}">Delete</button></div></div>`;
+    }
+    const m = it.m;
+    let title, amtHtml;
+    if (m.kind === 'income') { title = `💰 Income → ${esc(pocketName(m.to))}`; amtHtml = `<span class="pos">+${idr(m.amount)}</span>`; }
+    else if (m.kind === 'transfer') { title = `🔁 ${esc(pocketName(m.from))} → ${esc(pocketName(m.to))}`; amtHtml = idr(m.amount); }
+    else { title = `⚖️ Adjustment · ${esc(pocketName(m.to))}`; amtHtml = `<span class="${m.amount < 0 ? 'neg' : 'pos'}">${signed(m.amount)}</span>`; }
+    return `<div class="row"><div><div>${title}</div><div class="muted">${esc(m.date)}${m.note ? ' · ' + esc(m.note) : ''}</div></div><div style="text-align:right"><div class="amt">${amtHtml}</div><button class="small danger" data-delmove="${esc(m.id)}">Delete</button></div></div>`;
   }).join('') : '<div class="muted">Nothing yet.</div>';
 }
 
 function render() {
   const names = [...new Set(rows.filter(r => r.person).map(r => r.person))];
   $('#people').innerHTML = names.map(n => `<option value="${esc(n)}">`).join('');
-  renderSummary(); renderOwed(); renderHistory();
+  renderPocketSelect(); renderPockets(); renderSummary(); renderOwed(); renderHistory();
 }
 
-// events
+// ---------- events ----------
 $('#cats').addEventListener('click', e => { const b = e.target.closest('[data-cat]'); if (b) { category = b.dataset.cat; renderCats(); } });
 $('#nav').addEventListener('click', e => {
   const b = e.target.closest('[data-tab]'); if (!b) return;
@@ -230,9 +417,11 @@ $('#form').addEventListener('submit', async e => {
   const forOther = $('#forOther').checked;
   const person = $('#person').value.trim();
   if (forOther && !person) { toast('Add the name of who owes you'); return; }
+  const pocket = $('#pocket').value;
   $('#save').disabled = true;
   try {
-    await api({ action: 'add', amount: $('#amount').value, category, note: $('#note').value.trim(), date: $('#date').value, forOther, person });
+    await api({ action: 'add', amount: $('#amount').value, category, note: $('#note').value.trim(), date: $('#date').value, forOther, person, pocket });
+    if (activePockets().length) setLastPocket(pocket);
     toast('Saved');
     $('#amount').value = ''; $('#note').value = ''; $('#forOther').checked = false; $('#personWrap').style.display = 'none'; $('#person').value = '';
     await load();
@@ -240,11 +429,81 @@ $('#form').addEventListener('submit', async e => {
   $('#save').disabled = false;
 });
 
+$('#btnPocket').addEventListener('click', async () => {
+  const v = await ask('New pocket', [
+    { id: 'name', label: 'Name', required: true, placeholder: 'e.g. Wallet, Savings, Stocks' },
+    { id: 'type', label: 'Type', type: 'select', value: 'bank', options: TYPES.map(t => ({ v: t.id, l: `${t.e} ${t.label}` })) },
+    { id: 'opening', label: 'Current balance / value (IDR)', type: 'number', required: true, value: '0' },
+    { id: 'costBasis', label: 'Amount invested (investments only)', type: 'number', hint: 'Leave blank to use the current value as your cost.' },
+  ], 'Create');
+  if (!v) return;
+  const cost = v.type === 'investment' ? (v.costBasis === '' ? v.opening : v.costBasis) : 0;
+  run(() => api({ action: 'pocketAdd', name: v.name, type: v.type, opening: v.opening, costBasis: cost }), 'Pocket created');
+});
+
+$('#btnIncome').addEventListener('click', async () => {
+  if (!activePockets().length) { toast('Create a pocket first'); return; }
+  const v = await ask('Add income', [
+    { id: 'to', label: 'Into pocket', type: 'select', value: lastPocket(), options: pocketOptions() },
+    { id: 'amount', label: 'Amount (IDR)', type: 'number', required: true },
+    { id: 'date', label: 'Date', type: 'date', required: true, value: todayStr() },
+    { id: 'note', label: 'Note', placeholder: 'e.g. Salary' },
+  ], 'Add income');
+  if (!v) return;
+  run(() => api({ action: 'moveAdd', kind: 'income', to: v.to, amount: v.amount, date: v.date, note: v.note }), 'Income added');
+});
+
+$('#btnTransfer').addEventListener('click', async () => {
+  const list = pocketOptions();
+  if (list.length < 2) { toast('You need at least two pockets'); return; }
+  const v = await ask('Transfer between pockets', [
+    { id: 'from', label: 'From', type: 'select', value: list[0].v, options: list },
+    { id: 'to', label: 'To', type: 'select', value: list[1].v, options: list },
+    { id: 'amount', label: 'Amount (IDR)', type: 'number', required: true },
+    { id: 'date', label: 'Date', type: 'date', required: true, value: todayStr() },
+    { id: 'note', label: 'Note', placeholder: 'optional' },
+  ], 'Transfer');
+  if (!v) return;
+  if (v.from === v.to) { toast('Pick two different pockets'); return; }
+  run(() => api({ action: 'moveAdd', kind: 'transfer', from: v.from, to: v.to, amount: v.amount, date: v.date, note: v.note }), 'Transferred');
+});
+
 document.addEventListener('click', async e => {
-  const s = e.target.closest('[data-settle]'), d = e.target.closest('[data-del]');
+  const t = e.target;
+  const s = t.closest('[data-settle]'), d = t.closest('[data-del]'), dm = t.closest('[data-delmove]');
+  const sb = t.closest('[data-setbal]'), ar = t.closest('[data-archive]');
   try {
-    if (s) { await api({ action: 'settle', id: s.dataset.settle }); toast('Marked as paid'); await load(); }
+    if (s) {
+      let pocket = '';
+      if (activePockets().length) {
+        const v = await ask('Which pocket got the money?', [
+          { id: 'pocket', label: 'Received into', type: 'select', value: lastPocket(), options: pocketOptions("Don't add to a pocket") },
+        ], 'Mark paid');
+        if (!v) return;
+        pocket = v.pocket;
+      }
+      await api({ action: 'settle', id: s.dataset.settle, pocket }); toast('Marked as paid'); await load();
+    }
     if (d && confirm('Delete this expense?')) { await api({ action: 'delete', id: d.dataset.del }); toast('Deleted'); await load(); }
+    if (dm && confirm('Delete this entry? The pocket balance will change back.')) { await api({ action: 'moveDelete', id: dm.dataset.delmove }); toast('Deleted'); await load(); }
+    if (sb) {
+      const p = pockets.find(x => x.id === sb.dataset.setbal); if (!p) return;
+      const cur = pocketStats(p).bal;
+      const v = await ask(p.type === 'investment' ? `Update value: ${p.name}` : `Set balance: ${p.name}`, [
+        { id: 'value', label: p.type === 'investment' ? 'Current market value (IDR)' : 'Actual balance now (IDR)', type: 'number', required: true, value: String(cur), hint: 'The difference is recorded as an adjustment.' },
+      ], 'Update');
+      if (!v) return;
+      const delta = num(v.value) - cur;
+      if (!delta) { toast('No change'); return; }
+      await api({ action: 'moveAdd', kind: 'adjust', to: p.id, amount: delta, date: todayStr(), note: p.type === 'investment' ? 'Value update' : 'Balance correction' });
+      toast('Updated'); await load();
+    }
+    if (ar) {
+      const p = pockets.find(x => x.id === ar.dataset.archive); if (!p) return;
+      if (Math.abs(pocketStats(p).bal) >= 1) { toast('Move or set the balance to 0 before archiving'); return; }
+      if (!confirm(`Archive "${p.name}"? History is kept.`)) return;
+      await api({ action: 'pocketUpdate', id: p.id, archived: true }); toast('Archived'); await load();
+    }
   } catch (err) { toast(err.message); }
 });
 
