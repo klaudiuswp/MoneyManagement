@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Money Log</title>
+<style>
+  :root {
+    --bg: #f6f5f1; --card: #ffffff; --ink: #1f2420; --muted: #6b726c; --line: #e4e2da;
+    --accent: #2f6b4f; --accent-ink: #ffffff; --warn: #b4472f; --bar: #8fb9a3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #151816; --card: #1e2220; --ink: #ecefe9; --muted: #98a09a; --line: #2c322f;
+            --accent: #6fbf94; --accent-ink: #10231a; --warn: #e07a62; --bar: #3f6b55; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 16px 16px 8px; max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0; letter-spacing: -0.01em; }
+  h2 { font-size: 15px; margin: 0 0 10px; }
+  main { max-width: 640px; margin: 0 auto; padding: 0 16px 80px; }
+  nav { display: flex; gap: 6px; max-width: 640px; margin: 0 auto; padding: 4px 16px 12px; overflow-x: auto; }
+  nav button { flex: 1; white-space: nowrap; }
+  button, input, select { font: inherit; color: inherit; }
+  button { border: 1px solid var(--line); background: var(--card); padding: 9px 12px; border-radius: 10px; cursor: pointer; }
+  button.active, button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  button.small { padding: 5px 9px; font-size: 13px; }
+  button.danger { color: var(--warn); }
+  button:disabled { opacity: .5; cursor: default; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
+  input, select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); }
+  input[type=checkbox] { width: auto; margin-right: 8px; }
+  .check { display: flex; align-items: center; margin-top: 14px; color: var(--ink); font-size: 15px; }
+  .cats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .cats button { padding: 8px 2px; font-size: 13px; text-align: center; }
+  .cats button .e { display: block; font-size: 20px; }
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 9px 0; border-top: 1px solid var(--line); }
+  .row:first-child { border-top: 0; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .amt { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+  .bar { height: 8px; background: var(--line); border-radius: 4px; margin-top: 5px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--bar); }
+  .big { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+  .tab { display: none; } .tab.show { display: block; }
+  #msg { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; display: none; max-width: 90vw; }
+  dialog { border: 1px solid var(--line); border-radius: 14px; background: var(--card); color: var(--ink); width: min(92vw, 420px); }
+  dialog::backdrop { background: rgba(0,0,0,.4); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Money Log</h1>
+  <button id="gear" class="small" aria-label="Settings">Settings</button>
+</header>
+<nav id="nav">
+  <button data-tab="add" class="active">Add</button>
+  <button data-tab="summary">Summary</button>
+  <button data-tab="owed">Owed to me</button>
+  <button data-tab="history">History</button>
+</nav>
+
+<main>
+  <section id="tab-add" class="tab show">
+    <form id="form" class="card" autocomplete="off">
+      <label for="amount">Amount (IDR)</label>
+      <input id="amount" type="number" inputmode="numeric" min="1" step="any" required placeholder="35000">
+
+      <label>Category</label>
+      <div class="cats" id="cats"></div>
+
+      <label for="note">Note</label>
+      <input id="note" type="text" placeholder="optional, e.g. Grab to office">
+
+      <label for="date">Date</label>
+      <input id="date" type="date" required>
+
+      <label class="check"><input id="forOther" type="checkbox"> I paid for someone else</label>
+      <div id="personWrap" style="display:none">
+        <label for="person">Who owes you?</label>
+        <input id="person" type="text" list="people" placeholder="Name">
+        <datalist id="people"></datalist>
+      </div>
+
+      <button id="save" class="primary" style="width:100%; margin-top:18px" type="submit">Save expense</button>
+    </form>
+  </section>
+
+  <section id="tab-summary" class="tab">
+    <div class="card">
+      <label for="month" style="margin-top:0">Month</label>
+      <input id="month" type="month">
+      <div style="margin-top:14px" class="muted">Total spent</div>
+      <div class="big" id="total">-</div>
+      <div class="muted" id="totalOther"></div>
+    </div>
+    <div class="card"><h2>By category</h2><div id="byCat"></div></div>
+  </section>
+
+  <section id="tab-owed" class="tab">
+    <div class="card"><div class="muted">Total outstanding</div><div class="big" id="owedTotal">-</div></div>
+    <div id="owedList"></div>
+  </section>
+
+  <section id="tab-history" class="tab">
+    <div class="card"><h2>Recent</h2><div id="historyList"></div></div>
+  </section>
+</main>
+
+<dialog id="settings">
+  <form method="dialog">
+    <h2>Connection</h2>
+    <p class="muted">Stored only in this browser, never in your repo.</p>
+    <label for="cfgUrl">Apps Script Web App URL</label>
+    <input id="cfgUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec">
+    <label for="cfgToken">Token</label>
+    <input id="cfgToken" type="password" placeholder="same value as TOKEN in Code.gs">
+    <div style="display:flex; gap:8px; margin-top:16px">
+      <button value="cancel" style="flex:1">Cancel</button>
+      <button id="cfgSave" value="ok" class="primary" style="flex:1">Save</button>
+    </div>
+  </form>
+</dialog>
+<div id="msg"></div>
+
+<script>
+const CATS = [
+  { id: 'transportation', label: 'Transport', e: '🚕' },
+  { id: 'food',           label: 'Food',      e: '🍜' },
+  { id: 'coffee',         label: 'Coffee',    e: '☕' },
+  { id: 'occasion',       label: 'Occasion',  e: '🎉' },
+  { id: 'workout',        label: 'Workout',   e: '🏋️' },
+  { id: 'cigar',          label: 'Cigar',     e: '🚬' },
+  { id: 'gift',           label: 'Gift',      e: '🎁' },
+  { id: 'other',          label: 'Other',     e: '📦' },
+];
+const catById = Object.fromEntries(CATS.map(c => [c.id, c]));
+const $ = s => document.querySelector(s);
+const idr = n => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n || 0);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const todayStr = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+
+let rows = [];
+let category = 'food';
+
+function cfg() { try { return { url: localStorage.getItem('ml_url') || '', token: localStorage.getItem('ml_token') || '' }; } catch { return { url: '', token: '' }; } }
+function toast(t) { const m = $('#msg'); m.textContent = t; m.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => m.style.display = 'none', 2600); }
+
+async function api(body) {
+  const { url, token } = cfg();
+  if (!url || !token) throw new Error('Open Settings and add your URL and token');
+  const res = body
+    ? await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ ...body, token }) })
+    : await fetch(`${url}?token=${encodeURIComponent(token)}`);
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'Request failed');
+  return json;
+}
+
+async function load() {
+  try {
+    rows = (await api()).data.map(r => ({ ...r, amount: Number(r.amount), forOther: r.forOther === true || r.forOther === 'TRUE', settled: r.settled === true || r.settled === 'TRUE' }));
+    render();
+  } catch (e) { toast(e.message); }
+}
+
+function renderCats() {
+  $('#cats').innerHTML = CATS.map(c => `<button type="button" data-cat="${c.id}" class="${c.id === category ? 'active' : ''}"><span class="e">${c.e}</span>${c.label}</button>`).join('');
+}
+
+function renderSummary() {
+  const month = $('#month').value;
+  const list = rows.filter(r => String(r.date).startsWith(month));
+  const total = list.reduce((s, r) => s + r.amount, 0);
+  const other = list.filter(r => r.forOther).reduce((s, r) => s + r.amount, 0);
+  $('#total').textContent = idr(total);
+  $('#totalOther').textContent = other ? `of which ${idr(other)} paid for others` : '';
+  const sums = {};
+  list.forEach(r => sums[r.category] = (sums[r.category] || 0) + r.amount);
+  const sorted = Object.entries(sums).sort((a, b) => b[1] - a[1]);
+  const max = sorted.length ? sorted[0][1] : 1;
+  $('#byCat').innerHTML = sorted.length ? sorted.map(([id, v]) => {
+    const c = catById[id] || { label: id, e: '📦' };
+    return `<div style="margin:10px 0"><div class="row" style="padding:0;border:0"><span>${c.e} ${esc(c.label)}</span><span class="amt">${idr(v)}</span></div><div class="bar"><i style="width:${(v / max * 100).toFixed(0)}%"></i></div></div>`;
+  }).join('') : '<div class="muted">No expenses this month.</div>';
+}
+
+function renderOwed() {
+  const open = rows.filter(r => r.forOther && !r.settled);
+  $('#owedTotal').textContent = idr(open.reduce((s, r) => s + r.amount, 0));
+  const groups = {};
+  open.forEach(r => (groups[r.person || '(no name)'] ||= []).push(r));
+  const names = Object.keys(groups).sort((a, b) => groups[b].reduce((s, r) => s + r.amount, 0) - groups[a].reduce((s, r) => s + r.amount, 0));
+  $('#owedList').innerHTML = names.length ? names.map(n => {
+    const items = groups[n].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    const sum = items.reduce((s, r) => s + r.amount, 0);
+    return `<div class="card"><div class="row" style="padding-top:0"><h2 style="margin:0">${esc(n)}</h2><span class="amt">${idr(sum)}</span></div>` +
+      items.map(r => `<div class="row"><div><div>${(catById[r.category] || {}).e || ''} ${esc(r.note || r.category)}</div><div class="muted">${esc(r.date)} · ${idr(r.amount)}</div></div><button class="small" data-settle="${esc(r.id)}">Mark paid</button></div>`).join('') +
+      `</div>`;
+  }).join('') : '<div class="card muted">Nobody owes you anything.</div>';
+}
+
+function renderHistory() {
+  const list = [...rows].sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 60);
+  $('#historyList').innerHTML = list.length ? list.map(r => {
+    const c = catById[r.category] || { label: r.category, e: '📦' };
+    const tag = r.forOther ? ` · for ${esc(r.person || '?')}${r.settled ? ' (paid back)' : ''}` : '';
+    return `<div class="row"><div><div>${c.e} ${esc(r.note || c.label)}</div><div class="muted">${esc(r.date)}${tag}</div></div><div style="text-align:right"><div class="amt">${idr(r.amount)}</div><button class="small danger" data-del="${esc(r.id)}">Delete</button></div></div>`;
+  }).join('') : '<div class="muted">Nothing yet.</div>';
+}
+
+function render() {
+  const names = [...new Set(rows.filter(r => r.person).map(r => r.person))];
+  $('#people').innerHTML = names.map(n => `<option value="${esc(n)}">`).join('');
+  renderSummary(); renderOwed(); renderHistory();
+}
+
+// events
+$('#cats').addEventListener('click', e => { const b = e.target.closest('[data-cat]'); if (b) { category = b.dataset.cat; renderCats(); } });
+$('#nav').addEventListener('click', e => {
+  const b = e.target.closest('[data-tab]'); if (!b) return;
+  document.querySelectorAll('#nav button').forEach(x => x.classList.toggle('active', x === b));
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('show', t.id === 'tab-' + b.dataset.tab));
+});
+$('#forOther').addEventListener('change', e => { $('#personWrap').style.display = e.target.checked ? 'block' : 'none'; if (e.target.checked) $('#person').focus(); });
+$('#month').addEventListener('change', renderSummary);
+
+$('#form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const forOther = $('#forOther').checked;
+  const person = $('#person').value.trim();
+  if (forOther && !person) { toast('Add the name of who owes you'); return; }
+  $('#save').disabled = true;
+  try {
+    await api({ action: 'add', amount: $('#amount').value, category, note: $('#note').value.trim(), date: $('#date').value, forOther, person });
+    toast('Saved');
+    $('#amount').value = ''; $('#note').value = ''; $('#forOther').checked = false; $('#personWrap').style.display = 'none'; $('#person').value = '';
+    await load();
+  } catch (err) { toast(err.message); }
+  $('#save').disabled = false;
+});
+
+document.addEventListener('click', async e => {
+  const s = e.target.closest('[data-settle]'), d = e.target.closest('[data-del]');
+  try {
+    if (s) { await api({ action: 'settle', id: s.dataset.settle }); toast('Marked as paid'); await load(); }
+    if (d && confirm('Delete this expense?')) { await api({ action: 'delete', id: d.dataset.del }); toast('Deleted'); await load(); }
+  } catch (err) { toast(err.message); }
+});
+
+$('#gear').addEventListener('click', () => { const c = cfg(); $('#cfgUrl').value = c.url; $('#cfgToken').value = c.token; $('#settings').showModal(); });
+$('#settings').addEventListener('close', () => {
+  if ($('#settings').returnValue !== 'ok') return;
+  try { localStorage.setItem('ml_url', $('#cfgUrl').value.trim()); localStorage.setItem('ml_token', $('#cfgToken').value.trim()); } catch {}
+  load();
+});
+
+// init
+$('#date').value = todayStr();
+$('#month').value = todayStr().slice(0, 7);
+renderCats();
+if (cfg().url) load(); else $('#settings').showModal();
+</script>
+</body>
+</html>
