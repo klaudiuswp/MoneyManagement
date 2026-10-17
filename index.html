@@ -1,38 +1,71 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Corinthia:wght@400;700&family=Montserrat:wght@300;400;500&display=swap" rel="stylesheet">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Money Log</title>
 <style>
+  /* =========================================
+     1. NORMAL DESIGN VARIABLES (DEFAULT)
+     ========================================= */
   :root {
     --bg: #f6f5f1; --card: #ffffff; --ink: #1f2420; --muted: #6b726c; --line: #e4e2da;
-    --accent: #2f6b4f; --accent-ink: #ffffff; --warn: #b4472f; --bar: #8fb9a3; --good: #2f6b4f;
+    --accent: #B8D6E0; --accent-ink: #000000; --warn: #b4472f; --bar: #8fb9a3; --good: #2f6b4f;
     --c-liquid: #8fb9a3; --c-invest: #2f6b4f; --c-owed: #c9a14a;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #151816; --card: #1e2220; --ink: #ecefe9; --muted: #98a09a; --line: #2c322f;
-            --accent: #6fbf94; --accent-ink: #10231a; --warn: #e07a62; --bar: #3f6b55; --good: #6fbf94;
-            --c-liquid: #3f6b55; --c-invest: #6fbf94; --c-owed: #b8923f; }
+    :root:not([data-theme="elegant"]) { 
+      --bg: #151816; --card: #1e2220; --ink: #ecefe9; --muted: #98a09a; --line: #2c322f;
+      --accent: #6fbf94; --accent-ink: #10231a; --warn: #e07a62; --bar: #3f6b55; --good: #6fbf94;
+      --c-liquid: #3f6b55; --c-invest: #6fbf94; --c-owed: #b8923f; 
+    }
   }
+
+  /* =========================================
+     2. ELEGANT DESIGN VARIABLES
+     ========================================= */
+  :root[data-theme="elegant"] {
+    --bg: #fdfaf9; --card: #ffffff; --ink: #5a4f51; --muted: #ad9d9f; --line: #f2e9ea;
+    --accent: #f0d0d5; --accent-ink: #6b4349; --warn: #e09494; --bar: #ebd7d7; --good: #abc2b4;
+    --c-liquid: #abc2b4; --c-invest: #dcd0df; --c-owed: #ebd3be;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root[data-theme="elegant"] { 
+      --bg: #2e292a; --card: #3a3435; --ink: #fcf7f8; --muted: #b8a9ab; --line: #4d4446;
+      --accent: #c4979e; --accent-ink: #361f23; --warn: #d48282; --bar: #635053; --good: #87a897;
+      --c-liquid: #87a897; --c-invest: #b5a3b8; --c-owed: #c4a68c; 
+    }
+  }
+
+  /* =========================================
+     3. BASE STYLES (Applies to both, defaults to Normal)
+     ========================================= */
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; transition: background 0.3s, color 0.3s; }
   header { display: flex; align-items: center; justify-content: space-between; padding: 16px 16px 8px; max-width: 640px; margin: 0 auto; }
-  h1 { font-size: 20px; margin: 0; letter-spacing: -0.01em; }
+  h1 { font-size: 24px; margin: 0; letter-spacing: -0.01em; font-family: "Corinthia", cursive, system-ui, -apple-system, "Segoe UI", sans-serif; }
   h2 { font-size: 15px; margin: 0 0 10px; }
   main { max-width: 640px; margin: 0 auto; padding: 0 16px 80px; }
-  nav { display: flex; gap: 6px; max-width: 640px; margin: 0 auto; padding: 4px 16px 12px; overflow-x: auto; }
-  nav button { flex: 1; white-space: nowrap; }
-  button, input, select { font: inherit; color: inherit; }
+  nav { display: flex; gap: 6px; max-width: 640px; margin: 0 auto; padding: 4px 16px 12px; overflow-x: auto; scrollbar-width: none; }
+  nav::-webkit-scrollbar { display: none; }
+  nav button { flex: 1; white-space: nowrap; border: none; background: transparent; color: var(--muted); }
+  
+  button, input, select { font: inherit; color: inherit; transition: all 0.3s ease; }
   button { border: 1px solid var(--line); background: var(--card); padding: 9px 12px; border-radius: 10px; cursor: pointer; }
   button.active, button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
   button.small { padding: 5px 9px; font-size: 13px; }
   button.danger { color: var(--warn); }
   button:disabled { opacity: .5; cursor: default; }
+  
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
   label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
   input, select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); }
+  input:focus, select:focus { outline: none; border-color: var(--accent); }
   input[type=checkbox] { width: auto; margin-right: 8px; }
+  
   .check { display: flex; align-items: center; margin-top: 14px; color: var(--ink); font-size: 15px; }
   .cats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
   .cats button { padding: 8px 2px; font-size: 13px; text-align: center; }
@@ -42,6 +75,7 @@
   .muted { color: var(--muted); font-size: 13px; }
   .amt { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
   .neg { color: var(--warn); } .pos { color: var(--good); }
+  
   .bar { height: 8px; background: var(--line); border-radius: 4px; margin-top: 5px; overflow: hidden; }
   .bar > i { display: block; height: 100%; background: var(--bar); }
   .stack { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--line); margin: 12px 0 8px; }
@@ -49,19 +83,46 @@
   .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); }
   .legend b { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; }
   .big { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+  
   .actions { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
   .actions button { flex: 1; white-space: nowrap; }
   .section { font-size: 13px; color: var(--muted); margin: 18px 2px 8px; text-transform: uppercase; letter-spacing: .04em; }
   .btns { display: flex; gap: 6px; margin-top: 10px; }
   .tab { display: none; } .tab.show { display: block; }
+  
   #msg { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; display: none; max-width: 90vw; z-index: 10; }
   dialog { border: 1px solid var(--line); border-radius: 14px; background: var(--card); color: var(--ink); width: min(92vw, 420px); }
   dialog::backdrop { background: rgba(0,0,0,.4); }
+
+  /* =========================================
+     4. ELEGANT DESIGN OVERRIDES
+     ========================================= */
+  [data-theme="elegant"] body { font: 300 14px/1.6 'Montserrat', sans-serif; letter-spacing: 0.02em; }
+  [data-theme="elegant"] header { padding: 20px 20px 12px; }
+  [data-theme="elegant"] h1 { font-size: 38px; font-weight: 700; color: var(--accent-ink); }
+  [data-theme="elegant"] h2 { font-weight: 500; letter-spacing: 0.03em; }
+  [data-theme="elegant"] button { padding: 10px 16px; border-radius: 30px; font-weight: 400; }
+  [data-theme="elegant"] button.active, [data-theme="elegant"] button.primary { background: linear-gradient(135deg, var(--accent), #f7e6e8); box-shadow: 0 4px 12px rgba(240, 208, 213, 0.3); border: 1px solid var(--accent); }
+  [data-theme="elegant"] button.danger { background: transparent; border-color: transparent; }
+  [data-theme="elegant"] button.small { padding: 6px 12px; border-radius: 20px; font-size: 12px; }
+  [data-theme="elegant"] .card { border-radius: 20px; padding: 20px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.02); }
+  [data-theme="elegant"] label { font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; }
+  [data-theme="elegant"] input, [data-theme="elegant"] select { padding: 12px 14px; border-radius: 12px; font-weight: 400; }
+  [data-theme="elegant"] input:focus, [data-theme="elegant"] select:focus { box-shadow: 0 0 0 3px rgba(240, 208, 213, 0.25); }
+  [data-theme="elegant"] .check { font-size: 14px; text-transform: none; }
+  [data-theme="elegant"] .cats button { border-radius: 16px; }
+  [data-theme="elegant"] .muted { font-weight: 300; font-size: 12px; }
+  [data-theme="elegant"] .amt { font-weight: 500; font-size: 15px; }
+  [data-theme="elegant"] .bar, [data-theme="elegant"] .bar > i { border-radius: 3px; }
+  [data-theme="elegant"] .big { font-size: 32px; font-weight: 300; color: var(--accent-ink); }
+  [data-theme="elegant"] .section { font-size: 11px; font-weight: 500; }
+  [data-theme="elegant"] #msg { border-radius: 30px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); background: var(--accent-ink); color: #fff; }
+  [data-theme="elegant"] dialog { border: none; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); padding: 24px; }
 </style>
 </head>
 <body>
 <header>
-  <h1>Money Log</h1>
+  <h1>Louren Jaya Abadi 💗</h1>
   <button id="gear" class="small" aria-label="Settings">Settings</button>
 </header>
 <nav id="nav">
@@ -144,13 +205,20 @@
 
 <dialog id="settings">
   <form method="dialog">
-    <h2>Connection</h2>
-    <p class="muted">Stored only in this browser, never in your repo.</p>
+    <h2>Settings</h2>
+    
+    <label for="cfgStyle">Design Style</label>
+    <select id="cfgStyle">
+      <option value="normal">Base Design</option>
+      <option value="elegant">Design by Louren 💗</option>
+    </select>
+
+    <p class="muted" style="margin-top: 16px;">Stored only in this browser, never in your repo.</p>
     <label for="cfgUrl">Apps Script Web App URL</label>
     <input id="cfgUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec">
     <label for="cfgToken">Token</label>
     <input id="cfgToken" type="password" placeholder="same value as TOKEN in Code.gs">
-    <div style="display:flex; gap:8px; margin-top:16px">
+    <div style="display:flex; gap:8px; margin-top:20px">
       <button value="cancel" style="flex:1">Cancel</button>
       <button id="cfgSave" value="ok" class="primary" style="flex:1">Save</button>
     </div>
@@ -170,6 +238,12 @@
 <div id="msg"></div>
 
 <script>
+// --- THEME INITIALIZATION ---
+const savedStyle = localStorage.getItem('ml_style') || 'normal';
+if(savedStyle === 'elegant') {
+  document.documentElement.setAttribute('data-theme', 'elegant');
+}
+
 const CATS = [
   { id: 'transportation', label: 'Transport', e: '🚕' },
   { id: 'food',           label: 'Food',      e: '🍜' },
@@ -228,8 +302,6 @@ async function load() {
   } catch (e) { toast(e.message); }
 }
 
-// ---------- pocket maths ----------
-// balance = opening + income in + transfers in - transfers out + adjustments - expenses paid from it + settled debts received into it
 function pocketStats(p) {
   let bal = p.opening, cost = p.costBasis;
   moves.forEach(m => {
@@ -262,7 +334,6 @@ function netWorth() {
   return { liquid, invest, investCost, owed, total: liquid + invest + owed };
 }
 
-// ---------- dialog helper ----------
 function ask(title, fields, ok = 'Save') {
   return new Promise(resolve => {
     const d = $('#dlg'), form = $('#dlgForm');
@@ -289,7 +360,6 @@ async function run(fn, okMsg) {
   try { await fn(); if (okMsg) toast(okMsg); await load(); } catch (err) { toast(err.message); }
 }
 
-// ---------- rendering ----------
 function renderCats() {
   $('#cats').innerHTML = CATS.map(c => `<button type="button" data-cat="${c.id}" class="${c.id === category ? 'active' : ''}"><span class="e">${c.e}</span>${c.label}</button>`).join('');
 }
@@ -402,7 +472,6 @@ function render() {
   renderPocketSelect(); renderPockets(); renderSummary(); renderOwed(); renderHistory();
 }
 
-// ---------- events ----------
 $('#cats').addEventListener('click', e => { const b = e.target.closest('[data-cat]'); if (b) { category = b.dataset.cat; renderCats(); } });
 $('#nav').addEventListener('click', e => {
   const b = e.target.closest('[data-tab]'); if (!b) return;
@@ -507,10 +576,29 @@ document.addEventListener('click', async e => {
   } catch (err) { toast(err.message); }
 });
 
-$('#gear').addEventListener('click', () => { const c = cfg(); $('#cfgUrl').value = c.url; $('#cfgToken').value = c.token; $('#settings').showModal(); });
+$('#gear').addEventListener('click', () => { 
+  const c = cfg(); 
+  $('#cfgUrl').value = c.url; 
+  $('#cfgToken').value = c.token; 
+  $('#cfgStyle').value = localStorage.getItem('ml_style') || 'normal';
+  $('#settings').showModal(); 
+});
+
 $('#settings').addEventListener('close', () => {
   if ($('#settings').returnValue !== 'ok') return;
-  try { localStorage.setItem('ml_url', $('#cfgUrl').value.trim()); localStorage.setItem('ml_token', $('#cfgToken').value.trim()); } catch {}
+  try { 
+    localStorage.setItem('ml_url', $('#cfgUrl').value.trim()); 
+    localStorage.setItem('ml_token', $('#cfgToken').value.trim()); 
+    
+    // Save and apply theme
+    const newStyle = $('#cfgStyle').value;
+    localStorage.setItem('ml_style', newStyle);
+    if(newStyle === 'elegant') {
+      document.documentElement.setAttribute('data-theme', 'elegant');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+  } catch {}
   load();
 });
 
